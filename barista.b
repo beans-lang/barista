@@ -387,6 +387,18 @@ pub class ServiceProvider {
         }
     }
 
+    /// Whether anything is registered under this service type.
+    ///
+    /// A registry lookup and nothing else — it does not construct, resolve, or
+    /// validate a scope. It exists so a framework can check a whole graph of
+    /// declared dependencies **at startup**, and refuse there, instead of
+    /// discovering at render time that a field it was going to fill has no
+    /// answer. A question that has to build the object to be asked is not a
+    /// question you can ask about two hundred components.
+    pub fn provides(service_type: reflect.Type) -> bool {
+        return self.registry.find(service_type.qualified_name()).is_some()
+    }
+
     /// Resolve a service named by a runtime `reflect.Type`, boxed.
     ///
     /// `pub`, and the runtime-typed counterpart to `resolve<T>()` — the same
