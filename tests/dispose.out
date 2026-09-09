@@ -1,0 +1,18 @@
+== 1. a scope disposes what it built, newest first ==
+ok   construction order: +a +b +c +p
+ok   disposal order, and Plain silently skipped: -c -b -a
+
+== 2. a second scope builds and closes its own ==
+ok   a scope builds only what it is asked for: +a +b
+ok   and closes only those: -b -a
+
+== 3. a transient is handed over, not held ==
+ok   two transients built: +f +f
+ok   and the scope disposes neither — it kept no reference: 
+
+== 4. a singleton outlives every scope ==
+ok   built once, on first use: +pool
+ok   closing a scope does NOT dispose it: 
+ok   a later scope gets the same one, unbuilt: 
+ok   closing the root disposes it: -pool
+ok   exactly once: 1

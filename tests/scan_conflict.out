@@ -1,0 +1,1 @@
+scan service_conflict: service barista$entry.Mailer is provided by both barista$entry.SmtpMailer and barista$entry.LogMailer — drop @service from one and register your choice explicitly

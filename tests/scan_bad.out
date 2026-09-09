@@ -1,0 +1,1 @@
+scan service: @service class barista$entry.Highlander has no public initializer the container can call — a `singleton class`, an abstract class or a closed generic is one way to get here, and each registers through a factory (add_singleton_factory) instead

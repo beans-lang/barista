@@ -1,0 +1,12 @@
+module barista
+kind library
+
+# barista is pure Beans and imports `std.reflect` and nothing else. No `csrc`
+# row, no `link` row, no `require` row — and that is the property to keep.
+#
+# It has no I/O at all, deliberately. latte's core is built for
+# wasm32-unknown-unknown to hold the line that it imports no std.fs, std.net or
+# std.io (see latte/beans.pot and `latte/test.sh --wasm`); a container that
+# latte's core depends on inherits that constraint, and `test.sh --wasm` here
+# holds it independently so the failure lands in this repo rather than in a
+# consumer's.

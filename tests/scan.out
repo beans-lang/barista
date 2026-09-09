@@ -1,0 +1,9 @@
+scanned 3
+singleton names true
+singleton scopes true
+singleton built 1 for 3 resolves in 2 scopes
+scoped names true
+scoped split true
+scoped built 2 for 3 resolves in 2 scopes
+injected store@7
+transient split true
