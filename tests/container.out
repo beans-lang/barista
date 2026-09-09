@@ -6,6 +6,10 @@ singleton same true
 scoped built 2 for 3 resolves in 2 scopes
 transient built 2 for 2 resolves
 singleton built 1 for 2 resolves in 2 scopes
+last registration wins second
+forwarded same instance true
+forwarded per scope true
+forwarded built 2 for 3 resolves in 2 scopes
 root scope scope
 cycle service_cycle
 captive scope scope

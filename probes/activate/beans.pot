@@ -1,0 +1,4 @@
+module activate_probe
+kind application
+
+require path "../.."

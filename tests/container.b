@@ -18,6 +18,7 @@ package main
 
 import barista
 import std.io
+import std.reflect
 
 pub interface Clock {
     fn value() -> int
@@ -67,6 +68,41 @@ pub class FactoryMarker {
     }
 }
 
+// ---- last registration wins, and add_forwarded ------------------------
+//
+// Both of these were true before and neither was tested. "Last wins" used to
+// fall out of a reverse linear scan over a List — the same answer, true only
+// while nobody changed the direction of the loop. It is a Map now and the rule
+// is stated, so it gets a case.
+
+pub interface Sink {
+    fn label() -> string
+}
+
+pub class FirstSink implements Sink {
+    pub fn init() {}
+    pub fn label() -> string { return "first" }
+}
+
+pub class SecondSink implements Sink {
+    pub fn init() {}
+    pub fn label() -> string { return "second" }
+}
+
+pub interface Alias {
+    fn tag_of() -> int
+}
+
+pub class Forwarded implements Alias {
+    static made: int = 0
+    pub tag: int = 0
+    pub fn init() {
+        Forwarded.made += 1
+        self.tag = Forwarded.made
+    }
+    pub fn tag_of() -> int { return self.tag }
+}
+
 pub class CycleA {
     pub fn init(value: CycleB) {}
 }
@@ -93,6 +129,14 @@ fn main() {
     services.transient<CycleB>().expect("cycle b")
     services.singleton<BadSingleton>().expect("bad singleton")
     barista.add_singleton_factory(services, make_factory).expect("factory")
+    // Registered twice for the same service type. The second must win.
+    services.add_scoped<Sink, FirstSink>().expect("first sink")
+    services.add_scoped<Sink, SecondSink>().expect("second sink")
+    // One concrete service reachable under a second name, sharing one instance
+    // per scope — which is what an interface registration is.
+    services.scoped<Forwarded>().expect("forwarded")
+    services.add_forwarded(type_of(Alias), type_of(Forwarded),
+                           barista.ServiceLifetime.scoped).expect("alias")
 
     let root: barista.ServiceProvider = services.build_provider()
     let scope: barista.ServiceProvider = root.create_scope().expect("scope")
@@ -118,6 +162,24 @@ fn main() {
     io.println("scoped built {RequestMarker.made} for 3 resolves in 2 scopes")
     io.println("transient built {TransientMarker.made} for 2 resolves")
     io.println("singleton built {FactoryMarker.made} for 2 resolves in 2 scopes")
+    let sink: Sink = scope.resolve<Sink>().expect("sink")
+    io.println("last registration wins {sink.label()}")
+    // The forwarded name and the concrete name are the SAME instance in one
+    // scope, and a different one in the next — which is the whole point of
+    // forwarding rather than registering the type twice.
+    let direct: Forwarded = scope.resolve<Forwarded>().expect("direct")
+    let aliased: reflect.Value =
+        scope.resolve_type(type_of(Alias)).expect("aliased")
+    var aliased_tag: int = -1
+    match aliased as? Forwarded {
+        some(concrete) => { aliased_tag = concrete.tag }
+        none => {}
+    }
+    let elsewhere: Forwarded = other_scope.resolve<Forwarded>().expect("elsewhere")
+    io.println("forwarded same instance {direct.tag == aliased_tag}")
+    io.println("forwarded per scope {direct.tag != elsewhere.tag}")
+    io.println("forwarded built {Forwarded.made} for 3 resolves in 2 scopes")
+
     match root.resolve<RequestMarker>() {
         ok(_) => io.println("root scope accepted"),
         err(error) => io.println("root scope {error.kind}"),
