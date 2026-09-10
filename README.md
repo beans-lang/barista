@@ -37,12 +37,14 @@ fn main() {
 }
 ```
 
-## Where it came from
+## Install
 
-This was `espresso/di.b`. It moved because a container is not a web framework's
-business: `latte` wants one for its pages and view-models, and a desktop
-toolkit would want the same one without taking an HTTP server with it. The one
-function that knew about `WebApplicationBuilder` stayed in espresso.
+```
+beansc pot add github.com/beans-lang/barista v0.1.0
+```
+
+Pure Beans: no `csrc` row, no system library, nothing to compile. `import
+barista` and you have `ServiceCollection` and `ServiceProvider`.
 
 ## Registering
 
@@ -68,6 +70,10 @@ Constructor parameters are resolved from the same provider.
 `provider.activate(type)` constructs a type that is **not** registered — a page
 component, a handler object — resolving only its constructor's parameters, so a
 framework can mount caller-written types without turning each into a service.
+
+`provider.provides(service_type)` answers whether a type is registered,
+without building it. Use it to check a whole dependency graph at startup
+instead of discovering a missing registration when something tries to render.
 
 ## Lifetimes and scopes
 
@@ -95,15 +101,23 @@ exactly where cycles form.
 A **transient is never disposed**: the container hands it over and keeps no
 reference to it. If a transient owns a resource, its caller owns closing it.
 
+`provider.has_registrations()` and `provider.close_scope()` are for a host
+that does not know up front what it is holding: check the first before
+opening a scope for an application that registered nothing, and call the
+second on the way out — it closes a scope and does nothing on the root, so the
+caller does not need to know which one it has.
+
 ## What it does not do
 
 No instance registration (wrap it in a factory), no `try_add`, no
 multi-registration, no keyed services, no open generics, no decoration, no
 options binding.
 
-Two limits come from the language and are worth knowing before they surprise
-you:
+A few more limits are worth knowing before they surprise you:
 
+- **A service's initializer must be `pub`.** Reflection cannot call what it
+  cannot see. The `@service` scan checks this at scan time and names the type;
+  a manual registration finds out at the first `resolve` or `activate`.
 - **A closed generic, an abstract class and a `singleton class` have no
   reflective initializer**, so none of them can be container-activated. Register
   them through a factory. The `@service` scan refuses them by name at scan
@@ -113,6 +127,13 @@ you:
   extends. `class C implements Named`, where `interface Named extends Shape`,
   registers under `C` and `Named` and not under `Shape`. Add that one with
   `add_forwarded`.
+- **A move-only type resolves only through `resolve_type()`.** Registering one
+  is fine at any lifetime — registration never touches a static `T`. But
+  `resolve<T>()` needs to copy a `T` out of its box, and a move-only type
+  cannot be copied, so the checker refuses `resolve<T>()` for one outright
+  ("cannot use move-only `X` for generic `T`"), whatever the lifetime.
+  `resolve_type()` hands back a `reflect.Value` instead, and that works
+  everywhere, singletons included.
 
 ## Testing
 
@@ -124,8 +145,16 @@ you:
 ```
 
 Every suite runs under the tree interpreter *and* as a native binary, and both
-must print the golden byte for byte. That matters here more than usual:
-espresso's DI suite compared instances with `==` on class references, which
-does not build natively, so the container ran under the interpreter and only
-the interpreter for its whole life. Identity is a minted integer now, and both
-backends run everything.
+must print the golden byte for byte. That matters here more than usual: this
+container's own tests could not run natively for a long time, because the
+original suite told instances apart with `==` on class references, which the
+native backend refuses. Identity is a minted integer now, and both backends
+run everything.
+
+`probes/activate` measures what one `resolve<T>()` costs and where the time
+goes. It has no golden file and the gate does not run it — run it by hand, on
+an idle machine, before and after touching the resolve path:
+
+```bash
+beansc build probes/activate/main.b -o /tmp/activate && /tmp/activate
+```

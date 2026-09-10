@@ -16,16 +16,32 @@ The first release: `espresso/di.b`, extracted.
 - `barista.add_services(services)` and `add_services_except(services, reject)`.
   The scan no longer takes a `WebApplicationBuilder`; a host that wants to veto
   a scanned type passes a closure.
+- `ServiceProvider.provides(service_type)` — asks whether a service type is
+  registered, without building it. Lets a host check a whole dependency graph
+  at startup instead of discovering a missing registration when something
+  tries to render.
 
 ### Changed
 - `ServiceProvider.resolve_value` is now `pub fn resolve_type` — the
   runtime-typed counterpart to `resolve<T>()`, needed by any framework binding
   a parameter or activating a scanned type.
 - `has_registrations` and `close_scope` are `pub` for the same reason: a host
-  asks both per request.
+  asks both once per incoming request or job, whether or not it ends up
+  opening a scope.
 - The annotation is `@barista.service`. There is no `@espresso.service` alias.
 - `@service` on a type with no reflective initializer now names all three ways
   to get there — a `singleton class`, an abstract class, a closed generic.
+
+### Performance
+- `ActivationPlan` caches each implementation type's reflective initializer,
+  parameter list, and activation fault once per provider graph instead of once
+  per resolve. `resolve<Zero>()` (no dependencies) dropped from 740 ns to
+  445 ns; `resolve<Three>()` (three dependencies) from 1974 ns to 1067 ns.
+  Container overhead above the reflective-construction floor fell from 525 ns
+  to 222 ns.
+- "Last registration wins" is backed by a `Map` now, not a reverse scan over a
+  `List` — same behavior, but a stated rule with a test instead of an accident
+  of which way the loop ran.
 
 ### Not changed, on purpose
 - **Singletons stay lazy.** Building them at `build_provider()` would move

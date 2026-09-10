@@ -1,9 +1,10 @@
 // The negative control for the wasm leg.
 //
-// Without it, `_wasm_core.b` checking clean proves nothing the day the
-// freestanding refusal stops working — the leg would go green and stay green
-// for ever (RULES.md 5). This file imports exactly what
-// `wasm32-unknown-unknown` must refuse, and the gate FAILS if it is accepted.
+// A check that silently skips when its input goes missing reads green for
+// ever, even after what it was checking stops being true. Without this file,
+// `_wasm_core.b` checking clean would prove nothing the day the freestanding
+// refusal broke. This file imports exactly what `wasm32-unknown-unknown` must
+// refuse, and the gate FAILS if it is accepted.
 package main
 
 import barista

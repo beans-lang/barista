@@ -1,10 +1,9 @@
-// barista — the dependency-injection container for the Beans ecosystem.
+// barista — a dependency-injection container for Beans.
 //
-// It was `espresso/di.b`, and it is here because a container is not a web
-// framework's business: `latte` wants one for its pages and view-models, and a
-// desktop toolkit would want the same one without taking an HTTP server with
-// it. What moved is the whole container; what stayed behind in espresso is the
-// one function that knew about `WebApplicationBuilder`.
+// It has no framework attached on purpose: `latte` wants one for its pages
+// and view-models, a web server wants one per request, and a desktop app
+// wants the same rules without an HTTP server riding along. So barista knows
+// nothing about any of them — just types, lifetimes, and reflection.
 //
 // **This file imports `std.reflect` and nothing else, and must keep doing so.**
 // latte's core is compiled for `wasm32-unknown-unknown` to hold the line that
@@ -87,11 +86,14 @@ class ServiceDescriptor {
 /// Everything `activate` needs to know about one implementation type, worked
 /// out once and kept.
 ///
-/// The lookup this replaces was 137 ns of a 740 ns resolve, paid on **every**
-/// activation, and `initializer.parameters()` with a `passing()` and a `type()`
-/// per parameter was paid on top of it. None of that can change while a program
-/// runs: a type's initializer, its visibility and its parameter list are fixed
-/// at compile time.
+/// `Type.initializer()` was 137 ns of a 740 ns resolve, paid on **every**
+/// activation, and `initializer.parameters()` with a `passing()` and a
+/// `type()` per parameter was paid on top of that. None of it can change while
+/// a program runs: a type's initializer, its visibility and its parameter list
+/// are fixed at compile time. Caching it took `resolve<Zero>()` (no
+/// dependencies) from 740 ns to 445 ns and `resolve<Three>()` (three
+/// dependencies) from 1974 ns to 1067 ns — container overhead above the
+/// reflective-construction floor from 525 ns to 222 ns.
 ///
 /// A type that cannot be activated caches its reason too. Re-deriving the
 /// message costs exactly the reflection the plan exists to avoid, and a type
@@ -113,7 +115,7 @@ class ActivationPlan {
 ///
 /// One registry is shared by the root provider and every scope it makes
 /// (`create_scope` passes this reference along), so the cache below is filled
-/// once for the whole graph rather than once per request.
+/// once for the whole graph rather than once per scope.
 class ServiceRegistry {
     by_name: Map<string, ServiceDescriptor> = {}
     plans: Map<string, ActivationPlan> = {}
@@ -191,7 +193,7 @@ class SingletonStore {
     }
 }
 
-/// Registrations collected while an Espresso application is built.
+/// Registrations collected before `build_provider()` freezes them.
 pub class ServiceCollection {
     registry: ServiceRegistry = new ServiceRegistry()
     built: bool = false
@@ -285,17 +287,17 @@ pub class ServiceCollection {
     /// Freezes registrations and creates the root provider.
     ///
     /// **Singletons stay lazy, and that is a decision.** Building them here
-    /// would move every construction failure to startup, which is the shape
-    /// the rest of this ecosystem prefers — but it would also change what
-    /// `singleton service cannot capture scoped service` means, from an error
-    /// at the resolve that asked for it to an error at the line that built the
-    /// provider, and `tests/container.b` asserts the first. The usual argument
-    /// for eager construction is a lock-free first use across threads, and
-    /// that is already answered by ownership rather than by timing: espresso
-    /// gives every worker its own graph (`serve_workers.b`), so a "singleton"
-    /// is per graph, and two threads never race one `SingletonStore`. If a
-    /// host ever shares one graph across threads, this is the line to revisit
-    /// — and it needs a lock, not just eagerness.
+    /// would move every construction failure to startup, which reads better
+    /// for an operator — but it would also change what `singleton service
+    /// cannot capture scoped service` means, from an error at the resolve
+    /// that asked for it to an error at the line that built the provider, and
+    /// `tests/container.b` asserts the first. The usual argument for eager
+    /// construction is a lock-free first use across threads, and that is
+    /// already answered by ownership rather than by timing: espresso gives
+    /// every worker its own graph (`serve_workers.b`), so a "singleton" is
+    /// per graph, and two threads never race one `SingletonStore`. If a host
+    /// ever shares one graph across threads, this is the line to revisit —
+    /// and it needs a lock, not just eagerness.
     pub fn build_provider(validate_scopes: bool = true) -> ServiceProvider {
         self.built = true
         return new ServiceProvider(
@@ -303,7 +305,8 @@ pub class ServiceCollection {
     }
 }
 
-/// One dependency-injection scope. Create one child scope per HTTP request.
+/// One dependency-injection scope. Create one child scope per unit of work —
+/// a request, a job, a page render — and close it when that unit ends.
 pub class ServiceProvider {
     registry: ServiceRegistry
     singletons: SingletonStore

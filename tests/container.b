@@ -1,14 +1,13 @@
 // The container: lifetimes, constructor injection, scope rules, cycles, and
 // the close protocol.
 //
-// This is espresso's `tests/di.b`, ported — and changed in one way that
-// matters. The original asked `first == second` to tell one instance from
-// another, and **reference equality on two class references does not build
-// natively** (`beansc build` refuses it; the checker and the interpreter both
-// accept it — beans-lang/beans `test/emitter_gaps.tsv:92`). So that suite ran
-// under the interpreter and only the interpreter, for its whole life: the
-// container has never been exercised on the native backend, which is the half
-// where reflection metadata is emitted rather than shared.
+// The original version of this suite told one instance from another with
+// `first == second`, and **reference equality on two class references does
+// not build natively** (`beansc build` refuses it; the checker and the
+// interpreter both accept it — beans-lang/beans `test/emitter_gaps.tsv:92`).
+// So it ran under the interpreter and only the interpreter: the container was
+// never exercised on the native backend, which is the half where reflection
+// metadata is emitted rather than shared.
 //
 // Identity here is a minted int instead: every marker class stamps itself from
 // a static counter in `init`, and the suite compares tags. Both backends run
