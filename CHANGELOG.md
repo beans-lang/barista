@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.0] — unreleased
+## [0.1.0] — 2026-09-10
 
 The first release: `espresso/di.b`, extracted.
 
