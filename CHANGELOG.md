@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.1] — 2026-09-16
+
+No library change. The README showed `import barista`, which is the spelling
+that works only inside this checkout; a consumer who follows `pot add` writes
+`import github.com/beans-lang/barista`, and the binding is `barista` either
+way.
+
+Tagged so espresso, latte and cortado can pin a release rather than a local
+directory: each of them now reaches this container with a `require` row naming
+this repository.
+
 ## [0.1.0] — 2026-09-10
 
 The first release: `espresso/di.b`, extracted.

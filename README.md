@@ -8,7 +8,7 @@ discovery.
 It imports `std.reflect` and nothing else. No HTTP, no I/O, no C.
 
 ```beans
-import barista
+import github.com/beans-lang/barista
 
 pub interface Clock { fn value() -> int }
 
@@ -40,11 +40,12 @@ fn main() {
 ## Install
 
 ```
-beansc pot add github.com/beans-lang/barista v0.1.0
+beansc pot add github.com/beans-lang/barista v0.1.1
 ```
 
-Pure Beans: no `csrc` row, no system library, nothing to compile. `import
-barista` and you have `ServiceCollection` and `ServiceProvider`.
+Pure Beans: no `csrc` row, no system library, nothing to compile. Import it
+by its full path — `import github.com/beans-lang/barista` — and the binding is
+`barista`, the name its manifest declares.
 
 ## Registering
 
